@@ -6,18 +6,19 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
-  const video = db.prepare('SELECT * FROM landing_videos WHERE id = ?').get(id)
-  if (!video) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
-  return Response.json(video)
+  const db = await getDb()
+  const res = await db.execute({ sql: 'SELECT * FROM landing_videos WHERE id = ?', args: [id] })
+  if (!res.rows[0]) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
+  return Response.json(res.rows[0])
 }
 
 export async function PUT(request: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
+  const db = await getDb()
 
-  const existing = db.prepare('SELECT * FROM landing_videos WHERE id = ?').get(id) as Record<string, unknown> | undefined
-  if (!existing) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
+  const existingRes = await db.execute({ sql: 'SELECT * FROM landing_videos WHERE id = ?', args: [id] })
+  if (!existingRes.rows[0]) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
+  const existing = existingRes.rows[0] as Record<string, unknown>
 
   const contentType = request.headers.get('content-type') ?? ''
   let title: string | null = null
@@ -55,9 +56,8 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
     orderIndex = body.order_index ?? null
   }
 
-  const now = Date.now()
-  db.prepare(`
-    UPDATE landing_videos SET
+  await db.execute({
+    sql: `UPDATE landing_videos SET
       title       = COALESCE(?, title),
       subtitle    = CASE WHEN ? IS NOT NULL THEN ? ELSE subtitle END,
       file_path   = COALESCE(?, file_path),
@@ -66,32 +66,27 @@ export async function PUT(request: NextRequest, { params }: Ctx) {
       size        = COALESCE(?, size),
       order_index = COALESCE(?, order_index),
       updated_at  = ?
-    WHERE id = ?
-  `).run(
-    title?.trim() ?? null,
-    subtitle,
-    subtitle?.trim() ?? null,
-    newFilePath,
-    newFileName,
-    newMimeType,
-    newSize,
-    orderIndex,
-    now,
-    id,
-  )
+    WHERE id = ?`,
+    args: [
+      title?.trim() ?? null,
+      subtitle, subtitle?.trim() ?? null,
+      newFilePath, newFileName, newMimeType, newSize,
+      orderIndex, Date.now(), id,
+    ],
+  })
 
-  return Response.json(db.prepare('SELECT * FROM landing_videos WHERE id = ?').get(id))
+  const res = await db.execute({ sql: 'SELECT * FROM landing_videos WHERE id = ?', args: [id] })
+  return Response.json(res.rows[0])
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
+  const db = await getDb()
 
-  const existing = db.prepare('SELECT * FROM landing_videos WHERE id = ?').get(id) as Record<string, unknown> | undefined
-  if (!existing) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
+  const res = await db.execute({ sql: 'SELECT * FROM landing_videos WHERE id = ?', args: [id] })
+  if (!res.rows[0]) return Response.json({ error: 'Vidéo introuvable.' }, { status: 404 })
 
-  await deleteFile(existing.file_path as string)
-  db.prepare('DELETE FROM landing_videos WHERE id = ?').run(id)
-
+  await deleteFile((res.rows[0] as Record<string, unknown>).file_path as string)
+  await db.execute({ sql: 'DELETE FROM landing_videos WHERE id = ?', args: [id] })
   return new Response(null, { status: 204 })
 }

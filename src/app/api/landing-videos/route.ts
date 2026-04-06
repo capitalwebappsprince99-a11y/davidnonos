@@ -4,16 +4,13 @@ import { getDb } from '@/lib/db'
 import { saveUploadedFile } from '@/lib/upload'
 
 export async function GET() {
-  const db = getDb()
-  const videos = db.prepare(
-    'SELECT * FROM landing_videos ORDER BY order_index ASC, created_at ASC'
-  ).all()
-  return Response.json(videos)
+  const db = await getDb()
+  const res = await db.execute('SELECT * FROM landing_videos ORDER BY order_index ASC, created_at ASC')
+  return Response.json(res.rows)
 }
 
 export async function POST(request: NextRequest) {
   const formData = await request.formData()
-
   const file = formData.get('file') as File | null
   const title = formData.get('title') as string | null
   const subtitle = formData.get('subtitle') as string | null
@@ -29,28 +26,23 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: (err as Error).message }, { status: 422 })
   }
 
+  const db = await getDb()
+  const maxRes = await db.execute('SELECT MAX(order_index) as m FROM landing_videos')
+  const maxOrder = (maxRes.rows[0]?.m as number | null) ?? -1
   const now = Date.now()
   const id = uuidv4()
-  const db = getDb()
 
-  const maxOrder = (db.prepare('SELECT MAX(order_index) as m FROM landing_videos').get() as { m: number | null }).m ?? -1
+  await db.execute({
+    sql: `INSERT INTO landing_videos (id, title, subtitle, file_path, file_name, mime_type, size, order_index, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    args: [
+      id, title.trim(), subtitle?.trim() ?? null,
+      uploaded.filePath, uploaded.fileName, uploaded.mimeType, uploaded.size,
+      orderIndex !== null ? Number(orderIndex) : maxOrder + 1,
+      now, now,
+    ],
+  })
 
-  db.prepare(`
-    INSERT INTO landing_videos (id, title, subtitle, file_path, file_name, mime_type, size, order_index, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(
-    id,
-    title.trim(),
-    subtitle?.trim() ?? null,
-    uploaded.filePath,
-    uploaded.fileName,
-    uploaded.mimeType,
-    uploaded.size,
-    orderIndex !== null ? Number(orderIndex) : maxOrder + 1,
-    now,
-    now,
-  )
-
-  const video = db.prepare('SELECT * FROM landing_videos WHERE id = ?').get(id)
-  return Response.json(video, { status: 201 })
+  const res = await db.execute({ sql: 'SELECT * FROM landing_videos WHERE id = ?', args: [id] })
+  return Response.json(res.rows[0], { status: 201 })
 }

@@ -3,9 +3,9 @@ import { getDb } from '@/lib/db'
 import { saveUploadedFile, deleteFile } from '@/lib/upload'
 
 export async function GET() {
-  const db = getDb()
-  const row = db.prepare('SELECT file_path FROM directors_bg_video WHERE id = 1').get() as { file_path: string | null } | undefined
-  return NextResponse.json({ file_path: row?.file_path ?? null })
+  const db = await getDb()
+  const res = await db.execute('SELECT file_path FROM directors_bg_video WHERE id = 1')
+  return NextResponse.json({ file_path: (res.rows[0]?.file_path as string | null) ?? null })
 }
 
 export async function PUT(req: NextRequest) {
@@ -14,17 +14,17 @@ export async function PUT(req: NextRequest) {
     const file = form.get('file') as File | null
     if (!file) return NextResponse.json({ error: 'Fichier manquant.' }, { status: 400 })
 
-    const db = getDb()
-    const existing = db.prepare('SELECT file_path FROM directors_bg_video WHERE id = 1').get() as { file_path: string | null } | undefined
-    if (existing?.file_path) await deleteFile(existing.file_path)
+    const db = await getDb()
+    const existing = await db.execute('SELECT file_path FROM directors_bg_video WHERE id = 1')
+    const existingPath = existing.rows[0]?.file_path as string | null
+    if (existingPath) await deleteFile(existingPath)
 
     const uploaded = await saveUploadedFile(file, 'directors-bg')
 
-    db.prepare(`
-      UPDATE directors_bg_video
-      SET file_path = ?, file_name = ?, mime_type = ?, size = ?, updated_at = ?
-      WHERE id = 1
-    `).run(uploaded.filePath, uploaded.fileName, uploaded.mimeType, uploaded.size, Date.now())
+    await db.execute({
+      sql: `UPDATE directors_bg_video SET file_path = ?, file_name = ?, mime_type = ?, size = ?, updated_at = ? WHERE id = 1`,
+      args: [uploaded.filePath, uploaded.fileName, uploaded.mimeType, uploaded.size, Date.now()],
+    })
 
     return NextResponse.json({ file_path: uploaded.filePath })
   } catch (e: unknown) {
@@ -33,9 +33,10 @@ export async function PUT(req: NextRequest) {
 }
 
 export async function DELETE() {
-  const db = getDb()
-  const existing = db.prepare('SELECT file_path FROM directors_bg_video WHERE id = 1').get() as { file_path: string | null } | undefined
-  if (existing?.file_path) await deleteFile(existing.file_path)
-  db.prepare('UPDATE directors_bg_video SET file_path = NULL, file_name = NULL, mime_type = NULL, size = NULL, updated_at = ? WHERE id = 1').run(Date.now())
+  const db = await getDb()
+  const res = await db.execute('SELECT file_path FROM directors_bg_video WHERE id = 1')
+  const existingPath = res.rows[0]?.file_path as string | null
+  if (existingPath) await deleteFile(existingPath)
+  await db.execute({ sql: 'UPDATE directors_bg_video SET file_path = NULL, file_name = NULL, mime_type = NULL, size = NULL, updated_at = ? WHERE id = 1', args: [Date.now()] })
   return NextResponse.json({ ok: true })
 }

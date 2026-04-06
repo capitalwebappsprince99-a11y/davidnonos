@@ -3,17 +3,17 @@ import { getDb } from '@/lib/db'
 import { deleteFile, saveUploadedFile } from '@/lib/upload'
 
 export async function GET() {
-  const db = getDb()
-  const bio = db.prepare('SELECT * FROM bio WHERE id = 1').get() as Record<string, unknown>
-  const collaborators = db.prepare(
-    'SELECT * FROM collaborators ORDER BY order_index ASC, created_at ASC'
-  ).all()
-  return Response.json({ ...bio, collaborators })
+  const db = await getDb()
+  const bioRes = await db.execute('SELECT * FROM bio WHERE id = 1')
+  const bio = bioRes.rows[0] ?? {}
+  const collabRes = await db.execute('SELECT * FROM collaborators ORDER BY order_index ASC, created_at ASC')
+  return Response.json({ ...bio, collaborators: collabRes.rows })
 }
 
 export async function PUT(request: NextRequest) {
-  const db = getDb()
-  const existing = db.prepare('SELECT * FROM bio WHERE id = 1').get() as Record<string, unknown>
+  const db = await getDb()
+  const bioRes = await db.execute('SELECT * FROM bio WHERE id = 1')
+  const existing = bioRes.rows[0] as Record<string, unknown>
 
   const contentType = request.headers.get('content-type') ?? ''
   let bioText: string | null = null
@@ -28,7 +28,7 @@ export async function PUT(request: NextRequest) {
     if (image) {
       try {
         const uploaded = await saveUploadedFile(image, 'bio')
-        if (existing.image_path) await deleteFile(existing.image_path as string)
+        if (existing?.image_path) await deleteFile(existing.image_path as string)
         newImagePath = uploaded.filePath
         newImageName = uploaded.fileName
       } catch (err) {
@@ -40,18 +40,17 @@ export async function PUT(request: NextRequest) {
     bioText = body.bio_text ?? null
   }
 
-  db.prepare(`
-    UPDATE bio SET
+  await db.execute({
+    sql: `UPDATE bio SET
       bio_text   = CASE WHEN ? IS NOT NULL THEN ? ELSE bio_text END,
       image_path = COALESCE(?, image_path),
       image_name = COALESCE(?, image_name),
       updated_at = ?
-    WHERE id = 1
-  `).run(bioText, bioText?.trim() ?? null, newImagePath, newImageName, Date.now())
+    WHERE id = 1`,
+    args: [bioText, bioText?.trim() ?? null, newImagePath, newImageName, Date.now()],
+  })
 
-  const updated = db.prepare('SELECT * FROM bio WHERE id = 1').get() as Record<string, unknown>
-  const collaborators = db.prepare(
-    'SELECT * FROM collaborators ORDER BY order_index ASC, created_at ASC'
-  ).all()
-  return Response.json({ ...updated, collaborators })
+  const updatedRes = await db.execute('SELECT * FROM bio WHERE id = 1')
+  const collabRes = await db.execute('SELECT * FROM collaborators ORDER BY order_index ASC, created_at ASC')
+  return Response.json({ ...updatedRes.rows[0], collaborators: collabRes.rows })
 }

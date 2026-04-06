@@ -1,6 +1,6 @@
-import path from 'path'
-import fs from 'fs/promises'
+import { put, del } from '@vercel/blob'
 import { v4 as uuidv4 } from 'uuid'
+import path from 'path'
 
 export type UploadCategory = 'videos' | 'photos' | 'bio' | 'directors-bg'
 
@@ -10,14 +10,9 @@ const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const MAX_VIDEO_SIZE = 500 * 1024 * 1024  // 500 MB
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024   // 20 MB
 
-// Files are stored under data/uploads/ — same volume as the DB on Railway
-function getUploadsDir(): string {
-  return process.env.UPLOADS_DIR ?? path.join(process.cwd(), 'data', 'uploads')
-}
-
 export interface UploadedFile {
   fileName: string
-  filePath: string   // URL path, served via /api/files/...
+  filePath: string   // public Vercel Blob URL
   mimeType: string
   size: number
 }
@@ -47,31 +42,24 @@ export async function saveUploadedFile(
 
   const ext = path.extname(file.name) || mimeTypeToExt(mimeType)
   const fileName = `${uuidv4()}${ext}`
-  const uploadDir = path.join(getUploadsDir(), category)
+  const blobPath = `${category}/${fileName}`
 
-  await fs.mkdir(uploadDir, { recursive: true })
-
-  const filePath = path.join(uploadDir, fileName)
-  const buffer = Buffer.from(await file.arrayBuffer())
-  await fs.writeFile(filePath, buffer)
+  const blob = await put(blobPath, file, { access: 'public' })
 
   return {
     fileName,
-    filePath: `/api/files/${category}/${fileName}`,
+    filePath: blob.url,
     mimeType,
     size,
   }
 }
 
-export async function deleteFile(urlPath: string): Promise<void> {
-  if (!urlPath.startsWith('/api/files/')) return
-  // Strip /api/files/ prefix to get category/filename
-  const relative = urlPath.replace(/^\/api\/files\//, '')
-  const absPath = path.join(getUploadsDir(), relative)
+export async function deleteFile(url: string): Promise<void> {
+  if (!url || !url.startsWith('https://')) return
   try {
-    await fs.unlink(absPath)
+    await del(url)
   } catch {
-    // File may already be gone — ignore
+    // Already gone — ignore
   }
 }
 

@@ -6,41 +6,42 @@ type Ctx = { params: Promise<{ id: string }> }
 
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
-  const photo = db.prepare('SELECT * FROM moodboard_photos WHERE id = ?').get(id)
-  if (!photo) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
-  return Response.json(photo)
+  const db = await getDb()
+  const res = await db.execute({ sql: 'SELECT * FROM moodboard_photos WHERE id = ?', args: [id] })
+  if (!res.rows[0]) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
+  return Response.json(res.rows[0])
 }
 
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
+  const db = await getDb()
 
-  const existing = db.prepare('SELECT * FROM moodboard_photos WHERE id = ?').get(id)
-  if (!existing) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
+  const existing = await db.execute({ sql: 'SELECT * FROM moodboard_photos WHERE id = ?', args: [id] })
+  if (!existing.rows[0]) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
 
   const body = await request.json()
   const { alt_text, order_index } = body
 
-  db.prepare(`
-    UPDATE moodboard_photos SET
+  await db.execute({
+    sql: `UPDATE moodboard_photos SET
       alt_text    = CASE WHEN ? IS NOT NULL THEN ? ELSE alt_text END,
       order_index = COALESCE(?, order_index)
-    WHERE id = ?
-  `).run(alt_text, alt_text?.trim() ?? null, order_index !== undefined ? Number(order_index) : null, id)
+    WHERE id = ?`,
+    args: [alt_text, alt_text?.trim() ?? null, order_index !== undefined ? Number(order_index) : null, id],
+  })
 
-  return Response.json(db.prepare('SELECT * FROM moodboard_photos WHERE id = ?').get(id))
+  const res = await db.execute({ sql: 'SELECT * FROM moodboard_photos WHERE id = ?', args: [id] })
+  return Response.json(res.rows[0])
 }
 
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { id } = await params
-  const db = getDb()
+  const db = await getDb()
 
-  const existing = db.prepare('SELECT * FROM moodboard_photos WHERE id = ?').get(id) as Record<string, unknown> | undefined
-  if (!existing) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
+  const res = await db.execute({ sql: 'SELECT * FROM moodboard_photos WHERE id = ?', args: [id] })
+  if (!res.rows[0]) return Response.json({ error: 'Photo introuvable.' }, { status: 404 })
 
-  await deleteFile(existing.file_path as string)
-  db.prepare('DELETE FROM moodboard_photos WHERE id = ?').run(id)
-
+  await deleteFile((res.rows[0] as Record<string, unknown>).file_path as string)
+  await db.execute({ sql: 'DELETE FROM moodboard_photos WHERE id = ?', args: [id] })
   return new Response(null, { status: 204 })
 }
