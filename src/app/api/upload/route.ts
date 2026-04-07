@@ -27,6 +27,7 @@ export async function POST(request: Request): Promise<Response> {
     const blob = await put(`${folder}/${fileName}`, file, {
       access: 'public',
       multipart: true,
+      addRandomSuffix: true,
     })
 
     return Response.json({ url: blob.url })
