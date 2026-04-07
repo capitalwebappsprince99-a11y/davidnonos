@@ -40,7 +40,7 @@ export default function DirectorsBgVideoPage() {
       const r = await fetch('/api/directors/bg-video', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: blobUrl, file_name: file.name, mime_type: file.type, size: file.size }),
+        body: JSON.stringify({ file_path: blob.url, file_name: file.name, mime_type: file.type, size: file.size }),
       })
       if (r.ok) { setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
       else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
