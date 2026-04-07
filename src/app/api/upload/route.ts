@@ -1,4 +1,4 @@
-import { handleUpload, type HandleUploadBody } from '@vercel/blob/server'
+import { handleUpload, type HandleUploadBody } from '@vercel/blob'
 import { NextRequest } from 'next/server'
 
 export async function POST(request: NextRequest): Promise<Response> {
