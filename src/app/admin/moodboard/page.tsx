@@ -2,8 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 async function blobUpload(file: File, folder: string): Promise<string> {
-  const fd = new FormData(); fd.append('file', file); fd.append('folder', folder)
-  const res = await fetch('/api/upload', { method: 'POST', body: fd }).then(r => r.json())
+  const res = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'content-type': file.type, 'x-filename': encodeURIComponent(file.name), 'x-folder': folder },
+    body: file,
+  }).then(r => r.json())
   if (res.error) throw new Error(res.error)
   return res.url
 }

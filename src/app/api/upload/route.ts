@@ -1,12 +1,5 @@
 export const runtime = 'edge'
 
-import { put } from '@vercel/blob'
-
-const ALLOWED_TYPES = [
-  'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
-  'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
-]
-
 function sanitize(filename: string): string {
   return filename
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -16,22 +9,37 @@ function sanitize(filename: string): string {
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const formData = await request.formData()
-    const file = formData.get('file') as File | null
-    const folder = (formData.get('folder') as string) || 'uploads'
+    const filename = decodeURIComponent(request.headers.get('x-filename') ?? 'upload')
+    const folder = request.headers.get('x-folder') ?? 'uploads'
+    const contentType = request.headers.get('content-type') ?? 'application/octet-stream'
+    const token = process.env.BLOB_READ_WRITE_TOKEN
 
-    if (!file) return Response.json({ error: 'Fichier manquant.' }, { status: 400 })
-    if (!ALLOWED_TYPES.includes(file.type)) return Response.json({ error: 'Type non autorisé.' }, { status: 400 })
+    if (!token) return Response.json({ error: 'BLOB_READ_WRITE_TOKEN manquant.' }, { status: 500 })
 
-    const fileName = sanitize(file.name)
-    const blob = await put(`${folder}/${fileName}`, file, {
-      access: 'public',
-      multipart: true,
-      addRandomSuffix: true,
-    })
+    const pathname = `${folder}/${sanitize(filename)}`
+    const blobRes = await fetch(
+      `https://blob.vercel-storage.com/${pathname}?addRandomSuffix=1`,
+      {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': contentType,
+          'x-cache-control-max-age': '31536000',
+        },
+        body: request.body,
+        // @ts-expect-error duplex needed for streaming
+        duplex: 'half',
+      }
+    )
 
-    return Response.json({ url: blob.url })
+    if (!blobRes.ok) {
+      const err = await blobRes.text()
+      return Response.json({ error: err }, { status: blobRes.status })
+    }
+
+    const result = await blobRes.json() as { url: string }
+    return Response.json({ url: result.url })
   } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 400 })
+    return Response.json({ error: (err as Error).message }, { status: 500 })
   }
 }
