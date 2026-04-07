@@ -5,10 +5,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 
-const navLinks = [
+const navCenter = [
   { label: "Directors", href: "/directors" },
   { label: "Clips", href: "/filmtv" },
   { label: "Moodboard", href: "/image" },
+];
+
+const navRight = [
   { label: "Bio", href: "/bio" },
 ];
 
@@ -57,23 +60,26 @@ export default function Navigation() {
           <InterlockingText text="DavidNonos" />
         </Link>
 
-        {/* Horizontal Navigation - Center-Right */}
-        <ul className="nav-links-row">
-          {navLinks.map((link) => (
+        {/* Center links */}
+        <ul className="nav-links-row nav-links-center">
+          {navCenter.map((link) => (
             <li key={link.href}>
-              <Link
-                href={link.href}
-                className={pathname === link.href ? "active" : ""}
-              >
+              <Link href={link.href} className={pathname === link.href ? "active" : ""}>
                 <InterlockingText text={link.label} isActive={pathname === link.href} />
               </Link>
             </li>
           ))}
-          <li>
-            <Link href="/connexions">
-              <InterlockingText text="Connexions" />
-            </Link>
-          </li>
+        </ul>
+
+        {/* Right links */}
+        <ul className="nav-links-row nav-links-right">
+          {navRight.map((link) => (
+            <li key={link.href}>
+              <Link href={link.href} className={pathname === link.href ? "active" : ""}>
+                <InterlockingText text={link.label} isActive={pathname === link.href} />
+              </Link>
+            </li>
+          ))}
         </ul>
       </div>
     </nav>
