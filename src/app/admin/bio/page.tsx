@@ -4,13 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { put } from '@vercel/blob/client'
 
 async function blobUpload(file: File, folder: string): Promise<string> {
-  const pathname = `${folder}/${file.name}`
-  const { token } = await fetch('/api/upload', {
+  const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pathname, contentType: file.type }),
+    body: JSON.stringify({ pathname: `${folder}/${file.name}`, contentType: file.type }),
   }).then(r => r.json())
-  const blob = await put(pathname, file, { access: 'public', token })
+  if (res.error) throw new Error(res.error)
+  const blob = await put(res.pathname, file, { access: 'public', token: res.token })
   return blob.url
 }
 

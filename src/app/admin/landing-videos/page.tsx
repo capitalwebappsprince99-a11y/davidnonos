@@ -3,14 +3,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { put } from '@vercel/blob/client'
 
-async function blobUpload(file: File, folder: string): Promise<string> {
-  const pathname = `${folder}/${file.name}`
-  const { token } = await fetch('/api/upload', {
+async function blobUpload(file: File, folder: string, multipart = false): Promise<string> {
+  const raw = `${folder}/${file.name}`
+  const res = await fetch('/api/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pathname, contentType: file.type }),
+    body: JSON.stringify({ pathname: raw, contentType: file.type }),
   }).then(r => r.json())
-  const blob = await put(pathname, file, { access: 'public', token, multipart: true })
+  if (res.error) throw new Error(res.error)
+  const blob = await put(res.pathname, file, { access: 'public', token: res.token, multipart })
   return blob.url
 }
 
@@ -52,7 +53,7 @@ export default function LandingVideosPage() {
     e.preventDefault(); if (!file || !title.trim()) return
     setUploading(true); setError(null); setUploadProgress('Upload vers le CDN…')
     try {
-      const blobUrl = await blobUpload(file, 'videos')
+      const blobUrl = await blobUpload(file, 'videos', true)
       setUploadProgress('Sauvegarde…')
       const r = await fetch('/api/landing-videos', {
         method: 'POST',
