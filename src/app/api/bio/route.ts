@@ -1,6 +1,5 @@
 import { NextRequest } from 'next/server'
 import { getDb } from '@/lib/db'
-import { deleteFile, saveUploadedFile } from '@/lib/upload'
 
 export async function GET() {
   const db = await getDb()
@@ -12,33 +11,8 @@ export async function GET() {
 
 export async function PUT(request: NextRequest) {
   const db = await getDb()
-  const bioRes = await db.execute('SELECT * FROM bio WHERE id = 1')
-  const existing = bioRes.rows[0] as Record<string, unknown>
-
-  const contentType = request.headers.get('content-type') ?? ''
-  let bioText: string | null = null
-  let newImagePath: string | null = null
-  let newImageName: string | null = null
-
-  if (contentType.includes('multipart/form-data')) {
-    const formData = await request.formData()
-    bioText = formData.get('bio_text') as string | null
-
-    const image = formData.get('image') as File | null
-    if (image) {
-      try {
-        const uploaded = await saveUploadedFile(image, 'bio')
-        if (existing?.image_path) await deleteFile(existing.image_path as string)
-        newImagePath = uploaded.filePath
-        newImageName = uploaded.fileName
-      } catch (err) {
-        return Response.json({ error: (err as Error).message }, { status: 422 })
-      }
-    }
-  } else {
-    const body = await request.json()
-    bioText = body.bio_text ?? null
-  }
+  const body = await request.json()
+  const { bio_text, image_path, image_name } = body
 
   await db.execute({
     sql: `UPDATE bio SET
@@ -47,7 +21,7 @@ export async function PUT(request: NextRequest) {
       image_name = COALESCE(?, image_name),
       updated_at = ?
     WHERE id = 1`,
-    args: [bioText, bioText?.trim() ?? null, newImagePath, newImageName, Date.now()],
+    args: [bio_text ?? null, bio_text?.trim() ?? null, image_path ?? null, image_name ?? null, Date.now()],
   })
 
   const updatedRes = await db.execute('SELECT * FROM bio WHERE id = 1')

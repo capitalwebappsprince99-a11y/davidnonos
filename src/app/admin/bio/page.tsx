@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { upload } from '@vercel/blob/client'
 
 interface Collaborator { id: string; name: string; role: string | null }
 interface BioData { image_path: string | null; bio_text: string | null; collaborators: Collaborator[] }
@@ -37,11 +38,22 @@ export default function BioPage() {
 
   async function saveBio(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError(null); setSaved(false)
-    const fd = new FormData(); fd.append('bio_text', bioText)
-    if (imageFile) fd.append('image', imageFile)
-    const r = await fetch('/api/bio', { method: 'PUT', body: fd })
-    if (r.ok) { setImageFile(null); if (imageRef.current) imageRef.current.value = ''; setSaved(true); setTimeout(() => setSaved(false), 2500); await load() }
-    else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    try {
+      let image_path: string | undefined
+      let image_name: string | undefined
+      if (imageFile) {
+        const blob = await upload(`bio/${imageFile.name}`, imageFile, { access: 'public', handleUploadUrl: '/api/upload' })
+        image_path = blob.url
+        image_name = imageFile.name
+      }
+      const r = await fetch('/api/bio', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bio_text: bioText, ...(image_path ? { image_path, image_name } : {}) }),
+      })
+      if (r.ok) { setImageFile(null); if (imageRef.current) imageRef.current.value = ''; setSaved(true); setTimeout(() => setSaved(false), 2500); await load() }
+      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    } catch (err) { setError((err as Error).message) }
     setSaving(false)
   }
 

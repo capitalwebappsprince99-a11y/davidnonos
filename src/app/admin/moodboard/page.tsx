@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { upload } from '@vercel/blob/client'
 
 interface Photo { id: string; file_path: string; file_name: string; size: number }
 
@@ -27,10 +28,21 @@ export default function MoodboardPage() {
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault(); if (!files?.length) return
     setUploading(true); setError(null)
-    const fd = new FormData(); Array.from(files).forEach(f => fd.append('files', f))
-    const r = await fetch('/api/moodboard', { method: 'POST', body: fd })
-    if (r.ok) { setFiles(null); if (fileRef.current) fileRef.current.value = ''; await load() }
-    else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    try {
+      const uploaded = await Promise.all(
+        Array.from(files).map(f =>
+          upload(`photos/${f.name}`, f, { access: 'public', handleUploadUrl: '/api/upload' })
+            .then(blob => ({ file_path: blob.url, file_name: f.name, mime_type: f.type, size: f.size }))
+        )
+      )
+      const r = await fetch('/api/moodboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(uploaded),
+      })
+      if (r.ok) { setFiles(null); if (fileRef.current) fileRef.current.value = ''; await load() }
+      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    } catch (err) { setError((err as Error).message) }
     setUploading(false)
   }
 

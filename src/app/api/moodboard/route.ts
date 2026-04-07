@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
-import { saveUploadedFile } from '@/lib/upload'
 
 export async function GET() {
   const db = await getDb()
@@ -10,9 +9,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const formData = await request.formData()
-  const files = formData.getAll('files') as File[]
-  const altText = formData.get('alt_text') as string | null
+  // Accepts JSON array: [{ file_path, file_name, mime_type, size, alt_text? }]
+  const body = await request.json()
+  const files: Array<{ file_path: string; file_name: string; mime_type: string; size: number; alt_text?: string }> = Array.isArray(body) ? body : [body]
 
   if (!files.length) return Response.json({ error: 'Au moins une photo est requise.' }, { status: 400 })
 
@@ -22,21 +21,15 @@ export async function POST(request: NextRequest) {
 
   const inserted = []
 
-  for (const file of files) {
-    let uploaded
-    try {
-      uploaded = await saveUploadedFile(file, 'photos')
-    } catch (err) {
-      return Response.json({ error: (err as Error).message }, { status: 422 })
-    }
-
+  for (const f of files) {
+    if (!f.file_path) continue
     const id = uuidv4()
     const now = Date.now()
 
     await db.execute({
       sql: `INSERT INTO moodboard_photos (id, file_path, file_name, mime_type, size, alt_text, order_index, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      args: [id, uploaded.filePath, uploaded.fileName, uploaded.mimeType, uploaded.size, altText?.trim() ?? null, nextOrder, now],
+      args: [id, f.file_path, f.file_name ?? '', f.mime_type ?? '', f.size ?? 0, f.alt_text?.trim() ?? null, nextOrder, now],
     })
 
     const res = await db.execute({ sql: 'SELECT * FROM moodboard_photos WHERE id = ?', args: [id] })

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { upload } from '@vercel/blob/client'
 
 interface Video {
   id: string; title: string; subtitle: string | null
@@ -26,6 +27,7 @@ export default function LandingVideosPage() {
   const [videos, setVideos] = useState<Video[]>([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [title, setTitle] = useState(''); const [subtitle, setSubtitle] = useState(''); const [file, setFile] = useState<File | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -37,12 +39,22 @@ export default function LandingVideosPage() {
 
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault(); if (!file || !title.trim()) return
-    setUploading(true); setError(null)
-    const fd = new FormData(); fd.append('file', file); fd.append('title', title); fd.append('subtitle', subtitle)
-    const r = await fetch('/api/landing-videos', { method: 'POST', body: fd })
-    if (r.ok) { setTitle(''); setSubtitle(''); setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
-    else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
-    setUploading(false)
+    setUploading(true); setError(null); setUploadProgress('Upload vers le CDN…')
+    try {
+      const blob = await upload(`videos/${file.name}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/upload',
+      })
+      setUploadProgress('Sauvegarde…')
+      const r = await fetch('/api/landing-videos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() || null, file_path: blob.url, file_name: file.name, mime_type: file.type, size: file.size }),
+      })
+      if (r.ok) { setTitle(''); setSubtitle(''); setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
+      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    } catch (err) { setError((err as Error).message) }
+    setUploading(false); setUploadProgress('')
   }
 
   async function handleDelete(id: string) {
@@ -80,8 +92,9 @@ export default function LandingVideosPage() {
             style={{ fontSize: 12, color: '#777', display: 'block' }} />
         </div>
         {error && <p style={{ color: '#e05252', fontSize: 12, marginBottom: 16 }}>{error}</p>}
+        {uploading && uploadProgress && <p style={{ color: '#888', fontSize: 12, marginBottom: 16 }}>{uploadProgress}</p>}
         <button type="submit" disabled={uploading || !file || !title.trim()} style={{ ...F.btn, opacity: (uploading || !file || !title.trim()) ? 0.4 : 1 }}>
-          {uploading ? 'Upload…' : 'Uploader'}
+          {uploading ? 'Upload en cours…' : 'Uploader'}
         </button>
       </form>
 

@@ -1,7 +1,6 @@
 import { NextRequest } from 'next/server'
 import { v4 as uuidv4 } from 'uuid'
 import { getDb } from '@/lib/db'
-import { saveUploadedFile } from '@/lib/upload'
 
 export async function GET() {
   const db = await getDb()
@@ -10,21 +9,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const formData = await request.formData()
-  const file = formData.get('file') as File | null
-  const title = formData.get('title') as string | null
-  const subtitle = formData.get('subtitle') as string | null
-  const orderIndex = formData.get('order_index')
+  const body = await request.json()
+  const { title, subtitle, file_path, file_name, mime_type, size, order_index } = body
 
-  if (!file) return Response.json({ error: 'Fichier vidéo requis.' }, { status: 400 })
+  if (!file_path) return Response.json({ error: 'URL fichier requise.' }, { status: 400 })
   if (!title?.trim()) return Response.json({ error: 'Titre requis.' }, { status: 400 })
-
-  let uploaded
-  try {
-    uploaded = await saveUploadedFile(file, 'videos')
-  } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 422 })
-  }
 
   const db = await getDb()
   const maxRes = await db.execute('SELECT MAX(order_index) as m FROM landing_videos')
@@ -37,8 +26,8 @@ export async function POST(request: NextRequest) {
           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     args: [
       id, title.trim(), subtitle?.trim() ?? null,
-      uploaded.filePath, uploaded.fileName, uploaded.mimeType, uploaded.size,
-      orderIndex !== null ? Number(orderIndex) : maxOrder + 1,
+      file_path, file_name ?? '', mime_type ?? '', size ?? 0,
+      order_index !== undefined ? Number(order_index) : maxOrder + 1,
       now, now,
     ],
   })

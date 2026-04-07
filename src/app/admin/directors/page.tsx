@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { upload } from '@vercel/blob/client'
 
 interface BgVideo {
   file_path: string | null
@@ -34,17 +35,16 @@ export default function DirectorsBgVideoPage() {
     e.preventDefault()
     if (!file) return
     setUploading(true); setError(null)
-    const fd = new FormData()
-    fd.append('file', file)
-    const r = await fetch('/api/directors/bg-video', { method: 'PUT', body: fd })
-    if (r.ok) {
-      setFile(null)
-      if (fileRef.current) fileRef.current.value = ''
-      await load()
-    } else {
-      const d = await r.json()
-      setError(d.error ?? 'Erreur.')
-    }
+    try {
+      const blob = await upload(`directors-bg/${file.name}`, file, { access: 'public', handleUploadUrl: '/api/upload' })
+      const r = await fetch('/api/directors/bg-video', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ file_path: blob.url, file_name: file.name, mime_type: file.type, size: file.size }),
+      })
+      if (r.ok) { setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
+      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+    } catch (err) { setError((err as Error).message) }
     setUploading(false)
   }
 
