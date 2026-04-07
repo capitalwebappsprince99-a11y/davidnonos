@@ -1,7 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { upload } from '@vercel/blob/client'
+import { put } from '@vercel/blob/client'
+
+async function blobUpload(file: File, folder: string): Promise<string> {
+  const pathname = `${folder}/${file.name}`
+  const { token } = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pathname, contentType: file.type }),
+  }).then(r => r.json())
+  const blob = await put(pathname, file, { access: 'public', token })
+  return blob.url
+}
 
 interface Collaborator { id: string; name: string; role: string | null }
 interface BioData { image_path: string | null; bio_text: string | null; collaborators: Collaborator[] }
@@ -42,8 +53,7 @@ export default function BioPage() {
       let image_path: string | undefined
       let image_name: string | undefined
       if (imageFile) {
-        const blob = await upload(`bio/${imageFile.name}`, imageFile, { access: 'public', handleUploadUrl: '/api/upload' })
-        image_path = blob.url
+        image_path = await blobUpload(imageFile, 'bio')
         image_name = imageFile.name
       }
       const r = await fetch('/api/bio', {

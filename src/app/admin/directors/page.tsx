@@ -1,7 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { upload } from '@vercel/blob/client'
+import { put } from '@vercel/blob/client'
+
+async function blobUpload(file: File, folder: string): Promise<string> {
+  const pathname = `${folder}/${file.name}`
+  const { token } = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pathname, contentType: file.type }),
+  }).then(r => r.json())
+  const blob = await put(pathname, file, { access: 'public', token, multipart: true })
+  return blob.url
+}
 
 interface BgVideo {
   file_path: string | null
@@ -36,11 +47,11 @@ export default function DirectorsBgVideoPage() {
     if (!file) return
     setUploading(true); setError(null)
     try {
-      const blob = await upload(`directors-bg/${file.name}`, file, { access: 'public', handleUploadUrl: '/api/upload', multipart: true })
+      const blobUrl = await blobUpload(file, 'directors-bg')
       const r = await fetch('/api/directors/bg-video', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ file_path: blob.url, file_name: file.name, mime_type: file.type, size: file.size }),
+        body: JSON.stringify({ file_path: blobUrl, file_name: file.name, mime_type: file.type, size: file.size }),
       })
       if (r.ok) { setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
       else { const d = await r.json(); setError(d.error ?? 'Erreur.') }

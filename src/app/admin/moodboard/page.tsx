@@ -1,7 +1,18 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { upload } from '@vercel/blob/client'
+import { put } from '@vercel/blob/client'
+
+async function blobUpload(file: File, folder: string): Promise<string> {
+  const pathname = `${folder}/${file.name}`
+  const { token } = await fetch('/api/upload', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pathname, contentType: file.type }),
+  }).then(r => r.json())
+  const blob = await put(pathname, file, { access: 'public', token })
+  return blob.url
+}
 
 interface Photo { id: string; file_path: string; file_name: string; size: number }
 
@@ -31,8 +42,8 @@ export default function MoodboardPage() {
     try {
       const uploaded = await Promise.all(
         Array.from(files).map(async f => {
-          const blob = await upload(`photos/${f.name}`, f, { access: 'public', handleUploadUrl: '/api/upload' })
-          return { file_path: blob.url, file_name: f.name, mime_type: f.type, size: f.size }
+          const url = await blobUpload(f, 'photos')
+          return { file_path: url, file_name: f.name, mime_type: f.type, size: f.size }
         })
       )
       const r = await fetch('/api/moodboard', {
