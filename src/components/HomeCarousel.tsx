@@ -62,7 +62,7 @@ export default function HomeCarousel() {
   if (!videos.length) {
     return (
       <div className="carousel-container" style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ color: "#333", letterSpacing: "6px", fontSize: "10px" }}>ICONOCLAST</div>
+        <div style={{ color: "#333", letterSpacing: "6px", fontSize: "10px" }}>DAVIDNONOS</div>
       </div>
     );
   }
@@ -98,19 +98,6 @@ export default function HomeCarousel() {
       <div className="slide-overlay">
         <AnimatePresence mode="wait">
           <motion.div key={`text-${slide.id}`}>
-            {slide.subtitle && (
-              <div className="director-name" style={{ overflow: "hidden" }}>
-                <motion.div
-                  initial={{ y: "100%" }}
-                  animate={{ y: 0 }}
-                  exit={{ y: "-100%" }}
-                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.1 }}
-                >
-                  {slide.subtitle}
-                </motion.div>
-              </div>
-            )}
-
             <div className="brand-name">
               {words.map((word, wi) => (
                 <span
@@ -119,7 +106,7 @@ export default function HomeCarousel() {
                     display: "inline-block",
                     overflow: "hidden",
                     verticalAlign: "bottom",
-                    marginRight: wi < words.length - 1 ? "0.18em" : 0,
+                    marginLeft: wi > 0 ? "0.18em" : 0,
                   }}
                 >
                   <motion.span
@@ -130,7 +117,7 @@ export default function HomeCarousel() {
                     transition={{
                       duration: 0.9,
                       ease: [0.22, 1, 0.36, 1],
-                      delay: 0.15 + wi * 0.08,
+                      delay: 0.1 + wi * 0.08,
                     }}
                   >
                     {word}
@@ -138,6 +125,19 @@ export default function HomeCarousel() {
                 </span>
               ))}
             </div>
+
+            {slide.subtitle && (
+              <div className="director-name" style={{ overflow: "hidden" }}>
+                <motion.div
+                  initial={{ y: "100%" }}
+                  animate={{ y: 0 }}
+                  exit={{ y: "-100%" }}
+                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.3 }}
+                >
+                  {slide.subtitle}
+                </motion.div>
+              </div>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>

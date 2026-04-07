@@ -241,9 +241,19 @@ img {
 
 .slide-overlay {
   position: absolute;
-  bottom: 160px; /* moved up to avoid progress bar intersection */
-  left: var(--padding);
+  top: 42%;
+  transform: translateY(-50%);
+  right: var(--padding);
+  text-align: right;
   z-index: 10;
+}
+
+.slide-overlay .brand-name {
+  font-size: 52px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.05;
+  text-transform: uppercase;
 }
 
 .slide-overlay .director-name {
@@ -252,15 +262,8 @@ img {
   letter-spacing: 2.5px;
   text-transform: uppercase;
   opacity: 0.6;
-  margin-bottom: 6px;
+  margin-top: 8px;
   overflow: hidden;
-}
-
-.slide-overlay .brand-name {
-  font-size: 48px;
-  font-weight: 700;
-  letter-spacing: -1px;
-  line-height: 1.05;
 }
 
 /* ============================================
@@ -268,11 +271,11 @@ img {
    ============================================ */
 .carousel-progress-track {
   position: absolute;
-  bottom: 90px; /* moved up for larger numbers */
+  bottom: 48px;
   left: 0;
   right: 0;
-  height: 4px; /* thick premium loading bar */
-  background: rgba(255, 255, 255, 0.05);
+  height: 1px;
+  background: rgba(255, 255, 255, 0.1);
   z-index: 21;
   overflow: hidden;
 }
@@ -294,7 +297,7 @@ img {
   left: 0;
   right: 0;
   display: flex;
-  height: 90px;
+  height: 48px;
   z-index: 20;
 }
 
@@ -306,31 +309,29 @@ img {
   cursor: pointer;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.25);
   font-family: var(--font-family);
-  transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  transition: color 0.4s ease;
 }
 
 .pagination-item:hover {
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .pagination-item.active {
   color: #fff;
-  background: rgba(255, 255, 255, 0.04);
 }
 
 .pagination-number {
-  font-size: 24px; /* large numbers */
-  font-weight: 200;
+  font-size: 10px;
+  font-weight: 400;
   letter-spacing: 2px;
   line-height: 1;
+  text-transform: uppercase;
 }
 
 .pagination-item.active .pagination-number {
-  font-weight: 900;
-  font-size: 42px; /* massive active number */
+  font-weight: 700;
 }
 
 /* ============================================
