@@ -1,12 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-async function uploadToBlob(file: File, folder: string): Promise<string> {
-  const fd = new FormData(); fd.append('file', file); fd.append('folder', folder)
-  const r = await fetch('/api/upload', { method: 'POST', body: fd })
-  if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Upload échoué.') }
-  return (await r.json()).url
-}
+import { upload } from '@vercel/blob/client'
 
 interface Photo { id: string; file_path: string; file_name: string; size: number }
 
@@ -35,10 +30,10 @@ export default function MoodboardPage() {
     setUploading(true); setError(null)
     try {
       const uploaded = await Promise.all(
-        Array.from(files).map(async f => ({
-          file_path: await uploadToBlob(f, 'photos'),
-          file_name: f.name, mime_type: f.type, size: f.size,
-        }))
+        Array.from(files).map(async f => {
+          const blob = await upload(`photos/${f.name}`, f, { access: 'public', handleUploadUrl: '/api/upload' })
+          return { file_path: blob.url, file_name: f.name, mime_type: f.type, size: f.size }
+        })
       )
       const r = await fetch('/api/moodboard', {
         method: 'POST',

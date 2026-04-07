@@ -1,12 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-async function uploadToBlob(file: File, folder: string): Promise<string> {
-  const fd = new FormData(); fd.append('file', file); fd.append('folder', folder)
-  const r = await fetch('/api/upload', { method: 'POST', body: fd })
-  if (!r.ok) { const d = await r.json(); throw new Error(d.error ?? 'Upload échoué.') }
-  return (await r.json()).url
-}
+import { upload } from '@vercel/blob/client'
 
 interface Video {
   id: string; title: string; subtitle: string | null
@@ -46,12 +41,12 @@ export default function LandingVideosPage() {
     e.preventDefault(); if (!file || !title.trim()) return
     setUploading(true); setError(null); setUploadProgress('Upload vers le CDN…')
     try {
-      const blobUrl = await uploadToBlob(file, 'videos')
+      const blob = await upload(`videos/${file.name}`, file, { access: 'public', handleUploadUrl: '/api/upload', multipart: true })
       setUploadProgress('Sauvegarde…')
       const r = await fetch('/api/landing-videos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() || null, file_path: blobUrl, file_name: file.name, mime_type: file.type, size: file.size }),
+        body: JSON.stringify({ title: title.trim(), subtitle: subtitle.trim() || null, file_path: blob.url, file_name: file.name, mime_type: file.type, size: file.size }),
       })
       if (r.ok) { setTitle(''); setSubtitle(''); setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
       else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
