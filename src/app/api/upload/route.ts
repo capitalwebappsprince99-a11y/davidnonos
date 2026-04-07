@@ -1,5 +1,6 @@
-import { generateClientTokenFromReadWriteToken } from '@vercel/blob/client'
-import { NextRequest } from 'next/server'
+export const runtime = 'edge'
+
+import { put } from '@vercel/blob'
 
 const ALLOWED_TYPES = [
   'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
@@ -8,29 +9,27 @@ const ALLOWED_TYPES = [
 
 function sanitize(filename: string): string {
   return filename
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
-    .replace(/[^a-zA-Z0-9._-]/g, '_')                 // replace special chars
-    .replace(/_+/g, '_')                               // collapse underscores
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .replace(/_+/g, '_')
 }
 
-export async function POST(request: NextRequest): Promise<Response> {
+export async function POST(request: Request): Promise<Response> {
   try {
-    const { pathname, contentType } = await request.json()
-    if (!pathname) return Response.json({ error: 'pathname requis.' }, { status: 400 })
+    const formData = await request.formData()
+    const file = formData.get('file') as File | null
+    const folder = (formData.get('folder') as string) || 'uploads'
 
-    // Sanitize each path segment
-    const parts = pathname.split('/')
-    const clean = parts.map((p: string, i: number) =>
-      i === parts.length - 1 ? sanitize(p) : p
-    ).join('/')
+    if (!file) return Response.json({ error: 'Fichier manquant.' }, { status: 400 })
+    if (!ALLOWED_TYPES.includes(file.type)) return Response.json({ error: 'Type non autorisé.' }, { status: 400 })
 
-    const token = await generateClientTokenFromReadWriteToken({
-      pathname: clean,
-      allowedContentTypes: contentType ? [contentType] : ALLOWED_TYPES,
-      maximumSizeInBytes: 500 * 1024 * 1024,
+    const fileName = sanitize(file.name)
+    const blob = await put(`${folder}/${fileName}`, file, {
+      access: 'public',
+      multipart: true,
     })
 
-    return Response.json({ token, pathname: clean })
+    return Response.json({ url: blob.url })
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 400 })
   }

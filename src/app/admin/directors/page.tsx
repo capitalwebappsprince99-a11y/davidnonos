@@ -1,17 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { put } from '@vercel/blob/client'
-
 async function blobUpload(file: File, folder: string): Promise<string> {
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pathname: `${folder}/${file.name}`, contentType: file.type }),
-  }).then(r => r.json())
+  const fd = new FormData(); fd.append('file', file); fd.append('folder', folder)
+  const res = await fetch('/api/upload', { method: 'POST', body: fd }).then(r => r.json())
   if (res.error) throw new Error(res.error)
-  const blob = await put(res.pathname, file, { access: 'public', token: res.token, multipart: true })
-  return blob.url
+  return res.url
 }
 
 interface BgVideo {
