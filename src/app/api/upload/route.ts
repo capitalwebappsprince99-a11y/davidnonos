@@ -1,3 +1,5 @@
+import { put } from '@vercel/blob'
+
 function sanitize(filename: string): string {
   return filename
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -13,31 +15,18 @@ export async function POST(request: Request): Promise<Response> {
     const token = process.env.BLOB_READ_WRITE_TOKEN
 
     if (!token) return Response.json({ error: 'BLOB_READ_WRITE_TOKEN manquant.' }, { status: 500 })
+    if (!request.body) return Response.json({ error: 'Corps de requête manquant.' }, { status: 400 })
 
     const pathname = `${folder}/${sanitize(filename)}`
-    const blobRes = await fetch(
-      `https://blob.vercel-storage.com/${pathname}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': contentType,
-          'x-add-random-suffix': '1',
-          'x-cache-control-max-age': '31536000',
-        },
-        body: request.body,
-        // @ts-expect-error duplex needed for streaming
-        duplex: 'half',
-      }
-    )
+    const blob = await put(pathname, request.body, {
+      access: 'public',
+      addRandomSuffix: true,
+      contentType,
+      cacheControlMaxAge: 31536000,
+      token,
+    })
 
-    if (!blobRes.ok) {
-      const err = await blobRes.text()
-      return Response.json({ error: err }, { status: blobRes.status })
-    }
-
-    const result = await blobRes.json() as { url: string }
-    return Response.json({ url: result.url })
+    return Response.json({ url: blob.url })
   } catch (err) {
     return Response.json({ error: (err as Error).message }, { status: 500 })
   }
