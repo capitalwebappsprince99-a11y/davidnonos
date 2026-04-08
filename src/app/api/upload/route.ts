@@ -1,33 +1,23 @@
-import { put } from '@vercel/blob'
+import { handleUpload, type HandleUploadBody } from '@vercel/blob/client'
+import type { NextRequest } from 'next/server'
 
-function sanitize(filename: string): string {
-  return filename
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/_+/g, '_')
-}
-
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
+  const body = await request.json() as HandleUploadBody
   try {
-    const filename = decodeURIComponent(request.headers.get('x-filename') ?? 'upload')
-    const folder = request.headers.get('x-folder') ?? 'uploads'
-    const contentType = request.headers.get('content-type') ?? 'application/octet-stream'
-    const token = process.env.BLOB_READ_WRITE_TOKEN
-
-    if (!token) return Response.json({ error: 'BLOB_READ_WRITE_TOKEN manquant.' }, { status: 500 })
-    if (!request.body) return Response.json({ error: 'Corps de requête manquant.' }, { status: 400 })
-
-    const pathname = `${folder}/${sanitize(filename)}`
-    const blob = await put(pathname, request.body, {
-      access: 'public',
-      addRandomSuffix: true,
-      contentType,
-      cacheControlMaxAge: 31536000,
-      token,
+    const jsonResponse = await handleUpload({
+      body,
+      request,
+      onBeforeGenerateToken: async () => ({
+        allowedContentTypes: [
+          'image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif',
+          'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime',
+        ],
+        addRandomSuffix: true,
+        cacheControlMaxAge: 31536000,
+      }),
     })
-
-    return Response.json({ url: blob.url })
-  } catch (err) {
-    return Response.json({ error: (err as Error).message }, { status: 500 })
+    return Response.json(jsonResponse)
+  } catch (error) {
+    return Response.json({ error: (error as Error).message }, { status: 400 })
   }
 }

@@ -1,14 +1,17 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { upload } from '@vercel/blob/client'
+
+function sanitize(name: string) {
+  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_')
+}
 async function blobUpload(file: File, folder: string): Promise<string> {
-  const res = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'content-type': file.type, 'x-filename': encodeURIComponent(file.name), 'x-folder': folder },
-    body: file,
-  }).then(r => r.json())
-  if (res.error) throw new Error(res.error)
-  return res.url
+  const blob = await upload(`${folder}/${sanitize(file.name)}`, file, {
+    access: 'public',
+    handleUploadUrl: '/api/upload',
+  })
+  return blob.url
 }
 
 interface Video {
