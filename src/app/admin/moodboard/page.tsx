@@ -41,7 +41,7 @@ export default function MoodboardPage() {
         body: JSON.stringify(uploaded),
       })
       if (r.ok) { setFiles(null); if (fileRef.current) fileRef.current.value = ''; await load() }
-      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+      else { const d = await r.json().catch(() => null); setError(d?.error ?? `Erreur ${r.status}`) }
     } catch (err) { setError((err as Error).message) }
     setUploading(false)
   }

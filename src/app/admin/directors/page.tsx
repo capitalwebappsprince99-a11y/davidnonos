@@ -43,7 +43,7 @@ export default function DirectorsBgVideoPage() {
         body: JSON.stringify({ file_path: blobUrl, file_name: file.name, mime_type: file.type, size: file.size }),
       })
       if (r.ok) { setFile(null); if (fileRef.current) fileRef.current.value = ''; await load() }
-      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+      else { const d = await r.json().catch(() => null); setError(d?.error ?? `Erreur ${r.status}`) }
     } catch (err) { setError((err as Error).message) }
     setUploading(false)
   }

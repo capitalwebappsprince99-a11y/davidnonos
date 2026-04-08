@@ -51,7 +51,7 @@ export default function BioPage() {
         body: JSON.stringify({ bio_text: bioText, ...(image_path ? { image_path, image_name } : {}) }),
       })
       if (r.ok) { setImageFile(null); if (imageRef.current) imageRef.current.value = ''; setSaved(true); setTimeout(() => setSaved(false), 2500); await load() }
-      else { const d = await r.json(); setError(d.error ?? 'Erreur.') }
+      else { const d = await r.json().catch(() => null); setError(d?.error ?? `Erreur ${r.status}`) }
     } catch (err) { setError((err as Error).message) }
     setSaving(false)
   }
