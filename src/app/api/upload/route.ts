@@ -1,5 +1,3 @@
-export const runtime = 'edge'
-
 function sanitize(filename: string): string {
   return filename
     .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -18,12 +16,13 @@ export async function POST(request: Request): Promise<Response> {
 
     const pathname = `${folder}/${sanitize(filename)}`
     const blobRes = await fetch(
-      `https://blob.vercel-storage.com/${pathname}?addRandomSuffix=1`,
+      `https://blob.vercel-storage.com/${pathname}`,
       {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': contentType,
+          'x-add-random-suffix': '1',
           'x-cache-control-max-age': '31536000',
         },
         body: request.body,
