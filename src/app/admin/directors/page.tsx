@@ -1,18 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { upload } from '@vercel/blob/client'
-
-function sanitize(name: string) {
-  return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '_').replace(/_+/g, '_')
-}
-async function blobUpload(file: File, folder: string): Promise<string> {
-  const blob = await upload(`${folder}/${sanitize(file.name)}`, file, {
-    access: 'public',
-    handleUploadUrl: '/api/upload',
-  })
-  return blob.url
-}
+import { blobUpload } from '@/lib/blobUpload'
 
 interface BgVideo {
   file_path: string | null
