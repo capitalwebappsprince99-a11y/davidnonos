@@ -8,41 +8,65 @@ function sanitize(name: string) {
 export async function blobUpload(file: File, folder: string): Promise<string> {
   const pathname = `${folder}/${sanitize(file.name)}`
 
-  // Step 1: ask the server for a client token (tiny JSON request, no file involved)
-  const tokenRes = await fetch('/api/upload', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      type: 'blob.generate-client-token',
-      payload: { pathname, clientPayload: null, multipart: false },
-    }),
-  })
-  const tokenData = await tokenRes.json()
-  if (!tokenRes.ok || !tokenData.clientToken) {
-    throw new Error(tokenData.error ?? `Token error ${tokenRes.status}`)
+  // Step 1: get a client token from our server
+  let tokenRes: Response
+  try {
+    tokenRes = await fetch('/api/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'blob.generate-client-token',
+        payload: { pathname, clientPayload: null, multipart: false },
+      }),
+    })
+  } catch (err) {
+    throw new Error(`[étape 1 fetch] ${(err as Error).message}`)
   }
 
-  // Step 2: upload the file directly from the browser to Vercel Blob
-  const uploadRes = await fetch(
-    `https://vercel.com/api/blob/?${new URLSearchParams({ pathname })}`,
-    {
-      method: 'PUT',
-      headers: {
-        'authorization': `Bearer ${tokenData.clientToken}`,
-        'x-api-version': '12',
-        'x-content-type': file.type || 'application/octet-stream',
-        'x-vercel-blob-access': 'public',
-      },
-      body: file,
-    }
-  )
+  let tokenData: { clientToken?: string; error?: string; type?: string }
+  try {
+    tokenData = await tokenRes.json()
+  } catch {
+    const raw = await tokenRes.text().catch(() => '(illisible)')
+    throw new Error(`[étape 1 JSON ${tokenRes.status}] ${raw.slice(0, 300)}`)
+  }
+
+  if (!tokenData.clientToken) {
+    throw new Error(`[étape 1 pas de token] ${JSON.stringify(tokenData)}`)
+  }
+
+  // Step 2: upload directly from browser to Vercel Blob
+  let uploadRes: Response
+  try {
+    uploadRes = await fetch(
+      `https://vercel.com/api/blob/?${new URLSearchParams({ pathname })}`,
+      {
+        method: 'PUT',
+        headers: {
+          'authorization': `Bearer ${tokenData.clientToken}`,
+          'x-api-version': '12',
+          'x-content-type': file.type || 'application/octet-stream',
+          'x-vercel-blob-access': 'public',
+        },
+        body: file,
+      }
+    )
+  } catch (err) {
+    throw new Error(`[étape 2 fetch] ${(err as Error).message}`)
+  }
 
   if (!uploadRes.ok) {
     const text = await uploadRes.text().catch(() => String(uploadRes.status))
-    throw new Error(`Blob upload failed (${uploadRes.status}): ${text}`)
+    throw new Error(`[étape 2 ${uploadRes.status}] ${text.slice(0, 300)}`)
   }
 
-  const result = await uploadRes.json()
-  if (!result.url) throw new Error('No URL in blob response')
+  let result: { url?: string }
+  try {
+    result = await uploadRes.json()
+  } catch (err) {
+    throw new Error(`[étape 2 JSON] ${(err as Error).message}`)
+  }
+
+  if (!result.url) throw new Error('[étape 2] pas d\'URL dans la réponse')
   return result.url
 }
