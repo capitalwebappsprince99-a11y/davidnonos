@@ -11,7 +11,7 @@ function createDbClient(): Client {
 }
 
 async function initSchema(db: Client): Promise<void> {
-  await db.batch([
+  const stmts = [
     `CREATE TABLE IF NOT EXISTS landing_videos (
       id TEXT PRIMARY KEY,
       title TEXT NOT NULL,
@@ -67,7 +67,10 @@ async function initSchema(db: Client): Promise<void> {
       updated_at INTEGER NOT NULL
     )`,
     `INSERT OR IGNORE INTO directors_bg_video (id, updated_at) VALUES (1, ${Date.now()})`,
-  ], 'write')
+  ]
+  for (const sql of stmts) {
+    await db.execute(sql)
+  }
 }
 
 export async function getDb(): Promise<Client> {
@@ -75,7 +78,11 @@ export async function getDb(): Promise<Client> {
     client = createDbClient()
   }
   if (!initialized) {
-    initialized = initSchema(client)
+    initialized = initSchema(client).catch((err) => {
+      // Reset so next request retries instead of reusing a failed promise
+      initialized = null
+      throw err
+    })
   }
   await initialized
   return client
