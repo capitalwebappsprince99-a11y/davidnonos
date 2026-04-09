@@ -13,6 +13,7 @@ const navCenter = [
 
 const navRight = [
   { label: "Bio", href: "/bio" },
+  { label: "Contact", href: "/contact" },
 ];
 
 const InterlockingText = ({ text, isActive }: { text: string; isActive?: boolean }) => {
