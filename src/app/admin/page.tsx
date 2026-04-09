@@ -7,6 +7,7 @@ const sections = [
   { href: '/admin/clips', title: 'Clips YouTube', desc: 'Liens YouTube affichés dans la section Clips.' },
   { href: '/admin/moodboard', title: 'Moodboard', desc: 'Photos de la galerie moodboard.' },
   { href: '/admin/bio', title: 'Bio & Équipe', desc: 'Photo, texte bio et noms des collaborateurs.' },
+  { href: '/admin/contact', title: 'Contact', desc: 'Adresse, emails et numéros de téléphone.' },
   { href: '/admin/directors', title: 'Directors — Fond', desc: 'Vidéo en arrière-plan de la page Directors.' },
 ]
 

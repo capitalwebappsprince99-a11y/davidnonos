@@ -254,6 +254,7 @@ img {
   right: var(--padding);
   text-align: right;
   z-index: 10;
+  mix-blend-mode: difference;
 }
 
 .slide-overlay .brand-name {
@@ -601,14 +602,21 @@ img {
   margin-top: 1px;
 }
 
-.contact-person .email {
+.contact-person .email,
+.contact-person .phone {
   font-size: 11px;
   color: var(--color-light);
   transition: opacity 0.3s ease;
   display: inline-block;
 }
 
-.contact-person .email:hover {
+.contact-person .phone {
+  display: block;
+  margin-top: 2px;
+}
+
+.contact-person .email:hover,
+.contact-person .phone:hover {
   opacity: 0.6;
 }
 

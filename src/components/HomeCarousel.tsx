@@ -23,8 +23,9 @@ export default function HomeCarousel() {
 
   useEffect(() => {
     fetch("/api/landing-videos")
-      .then((r) => r.json())
-      .then((data: LandingVideo[]) => setVideos(data));
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then((data: LandingVideo[]) => setVideos(data))
+      .catch(() => {});
   }, []);
 
   const goTo = useCallback((index: number) => {

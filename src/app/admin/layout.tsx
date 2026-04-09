@@ -37,6 +37,7 @@ const nav = [
   { href: '/admin/clips', label: 'Clips YouTube' },
   { href: '/admin/moodboard', label: 'Moodboard' },
   { href: '/admin/bio', label: 'Bio & Équipe' },
+  { href: '/admin/contact', label: 'Contact' },
   { href: '/admin/directors', label: 'Directors — Fond' },
 ]
 
